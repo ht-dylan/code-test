@@ -31,6 +31,9 @@
   let canPreview = $derived(
     Object.keys(validateDraft(draftStore.draft, validationDate, applicant)).length === 0
   );
+  let formHref = $derived(appPath(draftStore.formPath()));
+  let applicantHref = $derived(appPath(draftStore.formPath('applicant')));
+  let travelHref = $derived(appPath(draftStore.formPath('travel')));
 
   const currencyFormatter = new Intl.NumberFormat('zh-CN', {
     style: 'currency',
@@ -51,14 +54,17 @@
     ) return;
 
     saving = true;
-    const created = applicationStore.create({ ...draftStore.draft }, 'submit');
+    const payload = { ...draftStore.draft };
+    const saved = draftStore.editingId
+      ? applicationStore.update(draftStore.editingId, payload, 'submit')
+      : applicationStore.create(payload, 'submit');
     if (applicationStore.pendingPersistence) {
       saving = false;
       return;
     }
 
     draftStore.clear();
-    await navigate(appPath(`/applications/${created.id}`));
+    await navigate(appPath(`/applications/${saved.id}`));
     saving = false;
   }
 
@@ -89,7 +95,7 @@
       <h1 class="text-xl font-semibold text-slate-950">暂无可预览的申请</h1>
       <p class="mt-2 text-sm text-slate-500">请先完整填写申请内容，再进入预览。</p>
       <a
-        href={appPath('/applications/new')}
+        href={formHref}
         class="mt-6 inline-flex rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
       >
         返回填写申请
@@ -112,7 +118,7 @@
             </span>
           {:else}
             <a
-              href={appPath('/applications/new#applicant')}
+              href={applicantHref}
               class="text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
               编辑申请人信息
@@ -152,7 +158,7 @@
             </span>
           {:else}
             <a
-              href={appPath('/applications/new#travel')}
+              href={travelHref}
               class="text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
               编辑行程信息
@@ -223,7 +229,7 @@
         </span>
       {:else}
         <a
-          href={appPath('/applications/new')}
+          href={formHref}
           class="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           返回修改

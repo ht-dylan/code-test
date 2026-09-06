@@ -288,6 +288,55 @@ describe('application store', () => {
     );
   });
 
+  it('updates an existing draft in place without changing its id', () => {
+    const { repository, store, setTime } = setup();
+    store.initialize();
+    const created = store.create(validDraft, 'draft');
+    setTime('2026-09-05T11:00:00.000Z');
+
+    const updated = store.update(created.id, { ...validDraft, destination: '杭州' }, 'draft');
+
+    expect(updated.id).toBe(created.id);
+    expect(updated.status).toBe('draft');
+    expect(updated.createdAt).toBe(created.createdAt);
+    expect(updated.updatedAt).toBe('2026-09-05T11:00:00.000Z');
+    expect(updated.travel.destination).toBe('杭州');
+    expect(store.applications).toHaveLength(1);
+    expect(repository.load()).toEqual([updated]);
+  });
+
+  it('updates a draft and submits it through the same application id', () => {
+    const { store } = setup();
+    store.initialize();
+    const created = store.create(validDraft, 'draft');
+
+    const submitted = store.update(created.id, { ...validDraft, destination: '杭州' }, 'submit');
+
+    expect(submitted.id).toBe(created.id);
+    expect(submitted.status).toBe('pending_manager');
+    expect(submitted.travel.destination).toBe('杭州');
+    expect(store.applications).toHaveLength(1);
+  });
+
+  it('rejects update on a non-draft application', () => {
+    const { store } = setup();
+    store.initialize();
+    const created = store.create(validDraft, 'submit');
+
+    expect(() => store.update(created.id, validDraft, 'draft')).toThrow('当前状态不允许编辑');
+    expect(store.applications[0].travel.destination).toBe(validDraft.destination);
+  });
+
+  it('rejects update by a non-owner', () => {
+    const { store, setActor } = setup();
+    store.initialize();
+    const created = store.create(validDraft, 'draft');
+    setActor(manager);
+
+    expect(() => store.update(created.id, validDraft, 'draft')).toThrow('当前角色无权执行此操作');
+    expect(store.applications[0].travel.destination).toBe(validDraft.destination);
+  });
+
   it('resets repository and store state to demo applications', () => {
     const { repository, store } = setup([]);
     store.initialize();
@@ -317,6 +366,27 @@ describe('draft store', () => {
     expect(store.draft.applicantId).toBe('');
     expect(store.draft.destination).toBe('');
     expect(store.focusSection).toBeNull();
+    expect(store.editingId).toBeNull();
+  });
+
+  it('loads a saved application for continued editing', () => {
+    const store = createDraftStore({
+      people: mockPeople,
+      today: () => '2026-09-05'
+    });
+    const application = seedApplications.find(({ status }) => status === 'draft') as TravelApplication;
+
+    store.load(application);
+
+    expect(store.editingId).toBe(application.id);
+    expect(store.draft).toEqual({
+      applicantId: application.applicant.id,
+      ...application.travel
+    });
+
+    store.clear();
+    expect(store.editingId).toBeNull();
+    expect(store.draft.applicantId).toBe('');
   });
 
   it('exposes validation errors and clears a field error when it changes', () => {

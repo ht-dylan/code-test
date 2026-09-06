@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import '@testing-library/jest-dom/vitest';
+import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { mockPeople } from '$lib/features/applications/data/mock';
 import type { SaveResult } from '$lib/features/applications/data/repository';
@@ -164,6 +165,29 @@ describe('TravelApplicationForm', () => {
     expect(applicationStore.applications).toHaveLength(1);
     expect(draftStore.draft.applicantId).toBe('');
     expect(navigate).toHaveBeenCalledWith('/applications/app-created');
+  });
+
+  it('saves edits to the original draft instead of creating another application', async () => {
+    const { applicationStore, draftStore, navigate } = setup();
+    const created = applicationStore.create(validDraft, 'draft');
+    draftStore.load(created);
+    await tick();
+    const create = vi.spyOn(applicationStore, 'create');
+    const update = vi.spyOn(applicationStore, 'update');
+
+    await fireEvent.input(screen.getByLabelText('目的地'), { target: { value: '杭州' } });
+    await fireEvent.click(screen.getByRole('button', { name: '保存草稿' }));
+
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      created.id,
+      { ...validDraft, destination: '杭州' },
+      'draft'
+    );
+    expect(applicationStore.applications).toHaveLength(1);
+    expect(applicationStore.applications[0].travel.destination).toBe('杭州');
+    expect(draftStore.draft.applicantId).toBe('');
+    expect(navigate).toHaveBeenCalledWith(`/applications/${created.id}`);
   });
 
   it('keeps a valid draft and navigates to preview', async () => {

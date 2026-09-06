@@ -10,6 +10,7 @@ import { createDraftStore } from '$lib/features/applications/state/draft-store.s
 import { createRoleState } from '$lib/features/applications/state/role-state.svelte';
 import ApplicationsPage from './applications/+page.svelte';
 import ApplicationDetailPage from './applications/[id]/+page.svelte';
+import EditApplicationPage from './applications/[id]/edit/+page.svelte';
 import NewApplicationPage from './applications/new/+page.svelte';
 import PreviewApplicationPage from './applications/preview/+page.svelte';
 
@@ -95,6 +96,17 @@ function createFlow() {
     } else if (route === '/applications') {
       view = render(ApplicationsPage, {
         props: { applicationStore, roleState, people: mockPeople }
+      });
+    } else if (route.endsWith('/edit')) {
+      view = render(EditApplicationPage, {
+        props: {
+          applicationId: route.replace('/applications/', '').replace('/edit', ''),
+          draftStore,
+          applicationStore,
+          roleState,
+          people: mockPeople,
+          navigate
+        }
       });
     } else {
       view = render(ApplicationDetailPage, {
@@ -200,6 +212,37 @@ describe('travel application end-to-end flows', () => {
     expect(screen.getByText('待主管审批')).toBeInTheDocument();
     expect(screen.getByText('提交申请')).toBeInTheDocument();
     expect(flow.applicationStore.applications[0].status).toBe('pending_manager');
+  });
+
+  it('resumes a saved draft, edits it, and submits the same application', async () => {
+    flow.open('/applications/new');
+    await fillForm();
+    await click('保存草稿');
+    flow.followNavigation();
+
+    const editLink = screen.getByRole('link', { name: '继续编辑' });
+    expect(editLink).toHaveAttribute('href', '/applications/app-flow-1/edit');
+    flow.follow(editLink);
+
+    await fireEvent.input(screen.getByLabelText('目的地'), { target: { value: '杭州' } });
+    await click('预览申请');
+    flow.followNavigation();
+
+    expect(screen.getByText('上海 → 杭州')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '编辑行程信息' })).toHaveAttribute(
+      'href',
+      '/applications/app-flow-1/edit#travel'
+    );
+
+    await click('确认提交');
+    flow.followNavigation();
+
+    expect(flow.applicationStore.applications).toHaveLength(1);
+    expect(flow.applicationStore.applications[0]).toMatchObject({
+      id: 'app-flow-1',
+      status: 'pending_manager',
+      travel: expect.objectContaining({ destination: '杭州' })
+    });
   });
 
   it('returns from preview to the applicant section, changes the applicant, and submits', async () => {

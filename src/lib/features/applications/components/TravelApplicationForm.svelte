@@ -49,6 +49,13 @@
     draftStore.setField('budget', value === '' ? null : Number(value));
   }
 
+  function persistDraft(mode: 'draft' | 'submit') {
+    const payload = { ...draftStore.draft };
+    return draftStore.editingId
+      ? applicationStore.update(draftStore.editingId, payload, mode)
+      : applicationStore.create(payload, mode);
+  }
+
   function validateOnBlur(): void {
     draftStore.validate();
   }
@@ -66,11 +73,11 @@
       return;
     }
 
-    const created = applicationStore.create({ ...draftStore.draft }, 'draft');
+    const saved = persistDraft('draft');
     if (applicationStore.pendingPersistence) return;
 
     draftStore.clear();
-    await navigate(appPath(`/applications/${created.id}`));
+    await navigate(appPath(`/applications/${saved.id}`));
   }
 
   async function retrySave(): Promise<void> {
@@ -99,8 +106,11 @@
   }
 </script>
 
-<form class="space-y-8" onsubmit={(event) => event.preventDefault()} novalidate>
-  <fieldset disabled={applicationStore.pendingPersistence !== null} class="contents">
+<form class="flex flex-col gap-6" onsubmit={(event) => event.preventDefault()} novalidate>
+  <fieldset
+    disabled={applicationStore.pendingPersistence !== null}
+    class="flex min-w-0 flex-col gap-6 border-0 p-0"
+  >
   <section
     id="applicant"
     aria-labelledby="applicant-heading"
@@ -297,7 +307,7 @@
     </div>
   {/if}
 
-  <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+  <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4">
     <button
       type="button"
       disabled={applicationStore.pendingPersistence !== null}

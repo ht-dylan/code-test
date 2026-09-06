@@ -24,6 +24,7 @@
   } = $props();
 
   onMount(() => {
+    if (draftStore.editingId) draftStore.clear();
     const section = window.location.hash.slice(1);
     if (section) document.getElementById(section)?.scrollIntoView({ block: 'start' });
   });
@@ -33,8 +34,8 @@
   <title>新建出差申请</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-  <header class="mb-7">
+<div class="space-y-6">
+  <header>
     <p class="text-sm font-medium text-blue-600">出差申请</p>
     <h1 class="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">新建出差申请</h1>
     <p class="mt-2 text-sm text-slate-500">填写申请人与行程信息，可保存草稿或预览后提交。</p>

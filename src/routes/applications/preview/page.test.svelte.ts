@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import '@testing-library/jest-dom/vitest';
+import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { mockPeople } from '$lib/features/applications/data/mock';
 import type { SaveResult } from '$lib/features/applications/data/repository';
@@ -156,5 +157,44 @@ describe('application preview page', () => {
       '/applications/new'
     );
     expect(screen.queryByRole('button', { name: '确认提交' })).not.toBeInTheDocument();
+  });
+
+  it('submits an edited draft through the original application id', async () => {
+    const { applicationStore, draftStore, navigate } = setup();
+    const created = applicationStore.create(validDraft, 'draft');
+    draftStore.load({
+      ...created,
+      travel: { ...created.travel, destination: '杭州' }
+    });
+    draftStore.setField('destination', '杭州');
+    await tick();
+    const create = vi.spyOn(applicationStore, 'create');
+    const update = vi.spyOn(applicationStore, 'update');
+
+    expect(screen.getByRole('link', { name: '编辑申请人信息' })).toHaveAttribute(
+      'href',
+      `/applications/${created.id}/edit#applicant`
+    );
+    expect(screen.getByRole('link', { name: '编辑行程信息' })).toHaveAttribute(
+      'href',
+      `/applications/${created.id}/edit#travel`
+    );
+    expect(screen.getByRole('link', { name: '返回修改' })).toHaveAttribute(
+      'href',
+      `/applications/${created.id}/edit`
+    );
+
+    await fireEvent.click(screen.getByRole('button', { name: '确认提交' }));
+
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      created.id,
+      { ...validDraft, destination: '杭州' },
+      'submit'
+    );
+    expect(applicationStore.applications).toHaveLength(1);
+    expect(applicationStore.applications[0].id).toBe(created.id);
+    expect(applicationStore.applications[0].status).toBe('pending_manager');
+    expect(navigate).toHaveBeenCalledWith(`/applications/${created.id}`);
   });
 });

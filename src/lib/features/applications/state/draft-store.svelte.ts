@@ -1,5 +1,6 @@
 import type {
   Person,
+  TravelApplication,
   TravelFormDraft,
   ValidationErrors
 } from '../domain/types';
@@ -28,6 +29,7 @@ export class DraftStore {
   draft = $state<TravelFormDraft>(emptyDraft());
   errors = $state<ValidationErrors>({});
   focusSection = $state<DraftFocusSection>(null);
+  editingId = $state<string | null>(null);
 
   constructor(private readonly dependencies: DraftStoreDependencies) {}
 
@@ -45,10 +47,26 @@ export class DraftStore {
     return this.errors;
   }
 
+  formPath(hash?: string): string {
+    const path = this.editingId ? `/applications/${this.editingId}/edit` : '/applications/new';
+    return hash ? `${path}#${hash}` : path;
+  }
+
+  load(application: TravelApplication): void {
+    this.editingId = application.id;
+    this.draft = {
+      applicantId: application.applicant.id,
+      ...application.travel
+    };
+    this.errors = {};
+    this.focusSection = null;
+  }
+
   clear(): void {
     this.draft = emptyDraft();
     this.errors = {};
     this.focusSection = null;
+    this.editingId = null;
   }
 }
 

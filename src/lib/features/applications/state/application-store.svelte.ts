@@ -98,6 +98,44 @@ export class ApplicationStore {
     return created;
   }
 
+  update(id: string, draft: TravelFormDraft, mode: CreateMode): TravelApplication {
+    if (this.pendingPersistence) throw new Error('请先重试保存当前申请');
+
+    const index = this.applications.findIndex((application) => application.id === id);
+    if (index < 0) throw new Error('未找到申请');
+
+    const current = this.applications[index];
+    if (current.status !== 'draft') throw new Error('当前状态不允许编辑');
+    if (this.dependencies.currentActor().id !== current.applicant.id) {
+      throw new Error('当前角色无权执行此操作');
+    }
+
+    const applicant = this.dependencies.people.find(({ id: personId }) => personId === draft.applicantId);
+    if (!applicant) throw new Error('未找到申请人');
+
+    if (mode === 'submit') this.assertValidDraft(draft, applicant);
+
+    const { applicantId: _applicantId, ...travel } = draft;
+    const occurredAt = this.dependencies.now();
+    const next: TravelApplication = {
+      ...current,
+      applicant: { ...applicant },
+      travel: { ...travel },
+      updatedAt: occurredAt
+    };
+    const updated =
+      mode === 'submit' ? transition(next, 'submit', applicant, '', occurredAt) : next;
+
+    this.submitErrors = {};
+    const applications = [...this.applications];
+    applications[index] = updated;
+    const result = this.persistAndPublish(applications);
+    this.pendingPersistence = result.persisted
+      ? null
+      : { applicationId: updated.id, warning: result.warning };
+    return updated;
+  }
+
   retryPersistence(): SaveResult {
     const result = this.dependencies.repository.save(this.applications);
     this.pendingPersistence = result.persisted

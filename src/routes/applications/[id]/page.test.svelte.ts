@@ -60,6 +60,21 @@ describe('application detail page', () => {
     expect(screen.getByText(draft.applicant.name)).toBeInTheDocument();
     expect(screen.getByText('暂无审批记录')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '提交申请' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '继续编辑' })).toHaveAttribute(
+      'href',
+      `/applications/${draft.id}/edit`
+    );
+  });
+
+  it('hides continue editing when the current role does not own the draft', async () => {
+    const draft = seedApplications.find(({ status }) => status === 'draft') as TravelApplication;
+    setup(draft);
+
+    await fireEvent.change(screen.getByLabelText('当前角色'), {
+      target: { value: 'p-manager' }
+    });
+
+    expect(screen.queryByRole('link', { name: '继续编辑' })).not.toBeInTheDocument();
   });
 
   it('rejects submitting an incomplete draft and shows Chinese field errors', async () => {

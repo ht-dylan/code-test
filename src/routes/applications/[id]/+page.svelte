@@ -31,6 +31,11 @@
   let application = $derived(
     applicationStore.applications.find(({ id }) => id === routeId)
   );
+  let canContinueEdit = $derived(
+    !!application &&
+      application.status === 'draft' &&
+      roleState.currentPerson.id === application.applicant.id
+  );
 
   function act(action: WorkflowAction, comment: string): void {
     if (!application || applicationStore.pendingPersistence) return;
@@ -125,11 +130,21 @@
       </div>
     {/if}
 
-    <ApprovalActions
-      {application}
-      actor={roleState.currentPerson}
-      disabled={applicationStore.pendingPersistence !== null}
-      onAction={act}
-    />
+    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+      {#if canContinueEdit}
+        <a
+          href={appPath(`/applications/${application.id}/edit`)}
+          class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          继续编辑
+        </a>
+      {/if}
+      <ApprovalActions
+        {application}
+        actor={roleState.currentPerson}
+        disabled={applicationStore.pendingPersistence !== null}
+        onAction={act}
+      />
+    </div>
   </div>
 {/if}
